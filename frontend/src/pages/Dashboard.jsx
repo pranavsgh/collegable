@@ -66,6 +66,7 @@ export default function Dashboard() {
   const [checked, setChecked] = useState({})
   const [activeNav, setActiveNav] = useState("checklist")
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -73,13 +74,27 @@ export default function Dashboard() {
       if (!user) { navigate("/login"); return }
       setUser(user)
 
+      // Load onboarding answers
       const { data: onboarding } = await supabase
         .from("onboarding_answers")
         .select("answers")
         .eq("user_id", user.id)
         .maybeSingle()
-
       if (onboarding) setAnswers(onboarding.answers)
+
+      // Load checklist progress
+      const { data: progress } = await supabase
+        .from("checklist_progress")
+        .select("checked_items")
+        .eq("user_id", user.id)
+        .maybeSingle()
+
+      if (progress?.checked_items) {
+        const checkedMap = {}
+        progress.checked_items.forEach(id => { checkedMap[id] = true })
+        setChecked(checkedMap)
+      }
+
       setLoading(false)
     }
     load()
@@ -90,8 +105,19 @@ export default function Dashboard() {
     navigate("/login")
   }
 
-  const toggleCheck = (id) => {
-    setChecked(prev => ({ ...prev, [id]: !prev[id] }))
+  const toggleCheck = async (id) => {
+    const updated = { ...checked, [id]: !checked[id] }
+    setChecked(updated)
+
+    const checkedIds = Object.keys(updated).filter(k => updated[k]).map(Number)
+    setSaving(true)
+    await supabase
+      .from("checklist_progress")
+      .upsert(
+        { user_id: user.id, grade: answers?.grade, checked_items: checkedIds, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      )
+    setSaving(false)
   }
 
   if (loading) {
@@ -118,14 +144,10 @@ export default function Dashboard() {
 
       {/* Sidebar */}
       <aside className="w-64 bg-[#17171e] border-r border-[#2a2a35] flex flex-col fixed h-full">
-
-        {/* Logo */}
         <div className="px-6 py-6 border-b border-[#2a2a35]">
           <span className="font-display font-bold text-xl text-white tracking-tight">Collegable</span>
           <p className="text-xs text-[#7a7a90] mt-1">Your college roadmap</p>
         </div>
-
-        {/* User info */}
         <div className="px-6 py-4 border-b border-[#2a2a35]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#6C63FF] flex items-center justify-center text-white text-xs font-bold">
@@ -137,26 +159,19 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        {/* Nav */}
         <nav className="flex-1 px-4 py-4 flex flex-col gap-1">
           {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
               className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
-                ${activeNav === item.id
-                  ? "bg-[#6C63FF] text-white"
-                  : "text-[#7a7a90] hover:text-white hover:bg-[#2a2a35]"
-                }`}
+                ${activeNav === item.id ? "bg-[#6C63FF] text-white" : "text-[#7a7a90] hover:text-white hover:bg-[#2a2a35]"}`}
             >
               <span>{item.icon}</span>
               {item.label}
             </button>
           ))}
         </nav>
-
-        {/* Progress in sidebar */}
         <div className="px-6 py-4 border-t border-[#2a2a35]">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-[#7a7a90]">Overall progress</span>
@@ -166,32 +181,22 @@ export default function Dashboard() {
             <div className="bg-[#6C63FF] h-1.5 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }}></div>
           </div>
           <p className="text-xs text-[#7a7a90] mt-2">{completedCount} of {checklist.length} tasks done</p>
+          {saving && <p className="text-xs text-[#6C63FF] mt-1">Saving...</p>}
         </div>
-
-        {/* Logout */}
         <div className="px-6 py-4 border-t border-[#2a2a35]">
-          <button onClick={logout} className="text-xs text-[#7a7a90] hover:text-[#FF6B6B] transition-colors">
-            → Sign out
-          </button>
+          <button onClick={logout} className="text-xs text-[#7a7a90] hover:text-[#FF6B6B] transition-colors">→ Sign out</button>
         </div>
       </aside>
 
       {/* Main content */}
       <main className="ml-64 flex-1 p-8">
 
-        {/* Checklist view */}
         {activeNav === "checklist" && (
           <div className="max-w-3xl">
             <div className="mb-8">
-              <h1 className="font-display font-bold text-2xl text-white mb-1">
-                Hey {firstName}, here's your roadmap 👋
-              </h1>
-              <p className="text-[#7a7a90] text-sm">
-                These are your tasks for {grade}. Check them off as you go.
-              </p>
+              <h1 className="font-display font-bold text-2xl text-white mb-1">Hey {firstName}, here's your roadmap 👋</h1>
+              <p className="text-[#7a7a90] text-sm">These are your tasks for {grade}. Check them off as you go.</p>
             </div>
-
-            {/* Status banner */}
             <div className={`rounded-xl p-4 mb-6 flex items-center justify-between border ${
               progressPct === 0 ? "bg-[#17171e] border-[#2a2a35]"
               : progressPct < 40 ? "bg-[#FF6B6B10] border-[#FF6B6B30]"
@@ -209,18 +214,13 @@ export default function Dashboard() {
               </div>
               <span className={`font-display font-bold text-2xl ${status.color}`}>{progressPct}%</span>
             </div>
-
-            {/* Tasks */}
             <div className="flex flex-col gap-3">
               {checklist.map(item => (
                 <div
                   key={item.id}
                   onClick={() => toggleCheck(item.id)}
                   className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all
-                    ${checked[item.id]
-                      ? "bg-[#17171e] border-[#2a2a35] opacity-60"
-                      : "bg-[#17171e] border-[#2a2a35] hover:border-[#6C63FF]"
-                    }`}
+                    ${checked[item.id] ? "bg-[#17171e] border-[#2a2a35] opacity-60" : "bg-[#17171e] border-[#2a2a35] hover:border-[#6C63FF]"}`}
                 >
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
                     ${checked[item.id] ? "bg-[#6C63FF] border-[#6C63FF]" : "border-[#4a4a6a]"}`}>
@@ -238,7 +238,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Resources view */}
         {activeNav === "resources" && (
           <div className="max-w-3xl">
             <div className="mb-8">
@@ -265,17 +264,16 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Chat view */}
         {activeNav === "chat" && (
           <div className="max-w-2xl">
             <div className="mb-8">
               <h1 className="font-display font-bold text-2xl text-white mb-1">AI College Guide</h1>
-              <p className="text-[#7a7a90] text-sm">Ask anything about college prep. Coming soon — Pranav is building the backend.</p>
+              <p className="text-[#7a7a90] text-sm">Ask anything about college prep. Coming soon.</p>
             </div>
             <div className="bg-[#17171e] border border-[#2a2a35] rounded-2xl p-8 flex flex-col items-center text-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-[#6C63FF20] flex items-center justify-center text-3xl">🤖</div>
               <h2 className="font-display font-bold text-lg text-white">Chat is coming soon</h2>
-              <p className="text-sm text-[#7a7a90] max-w-sm">The AI guide will be able to answer your college questions 24/7. It's being built right now — check back soon.</p>
+              <p className="text-sm text-[#7a7a90] max-w-sm">The AI guide will answer your college questions 24/7. Being built right now — check back soon.</p>
             </div>
           </div>
         )}
