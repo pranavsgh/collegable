@@ -1,15 +1,35 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from db.supabase import supabase
+from routes.auth import router as auth_router
+from routes.checklist import router as checklist_router
+from routes.resources import router as resources_router
+from routes.onboarding import router as onboarding_router
+from routes.roadmap import router as roadmap_router
+from routes.chat import router as chat_router
+
+
+
+
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(checklist_router)
+app.include_router(auth_router)
+app.include_router(roadmap_router)
+app.include_router(resources_router)
+app.include_router(onboarding_router)
+app.include_router(chat_router)
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "project": "Collegable"}
+    return {"status": "ok"}
