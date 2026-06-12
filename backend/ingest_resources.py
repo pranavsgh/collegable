@@ -1,3 +1,5 @@
+# One-time script that seeds the Pinecone knowledge base with college prep content.
+# Run this manually whenever the knowledge base needs to be rebuilt or updated.
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -6,6 +8,7 @@ from services.ingest import ingest_document
 from dotenv import load_dotenv
 load_dotenv()
 
+# Each entry is a self-contained topic; the source key becomes the Pinecone vector ID prefix
 resources = [
     {
         "source": "activity-list-guide",
