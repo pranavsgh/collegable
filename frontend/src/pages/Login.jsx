@@ -16,13 +16,27 @@ export default function Login() {
     setError("")
     if (!form.email || !form.password) { setError("Please fill in all fields."); return }
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
     })
+
+    if (error) { setError(error.message); setLoading(false); return }
+
+    const { data: onboarding } = await supabase
+      .from("onboarding_answers")
+      .select("id")
+      .eq("user_id", data.user.id)
+      .maybeSingle()
+
     setLoading(false)
-    if (error) { setError(error.message); return }
-    navigate("/dashboard")
+
+    if (onboarding) {
+      navigate("/dashboard")
+    } else {
+      navigate("/onboarding")
+    }
   }
 
   return (
