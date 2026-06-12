@@ -40,41 +40,89 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <span onClick={() => navigate("/")} className="font-display font-bold text-2xl text-[#1a1a2e] tracking-tight cursor-pointer hover:text-[#6C63FF] transition-colors">Collegable</span>
+    <div className="min-h-screen bg-gray-50 font-sans">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center">
+          <span
+            onClick={() => navigate("/")}
+            className="font-bold text-navy text-lg tracking-tight cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            Collegable
+          </span>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-[#f0f0f5] p-8">
-          <h1 className="font-display font-bold text-2xl text-[#1a1a2e] mb-1">Welcome back</h1>
-          <p className="text-sm text-[#9a9ab0] mb-8">Log in to continue your roadmap.</p>
-          {error && (
-            <div className="bg-red-50 border border-red-100 text-red-500 text-sm px-4 py-3 rounded-xl mb-6">{error}</div>
-          )}
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="text-xs font-semibold text-[#4a4a6a] uppercase tracking-wide mb-1.5 block">Email</label>
-              <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="you@email.com" className="w-full px-4 py-3 rounded-xl border border-[#e0e0f0] text-sm text-[#1a1a2e] placeholder-[#c0c0d0] focus:outline-none focus:border-[#6C63FF] transition-colors bg-[#FAFAF7]" />
+      </header>
+
+      <div className="flex items-center justify-center px-6 py-16">
+        <div className="w-full max-w-md">
+          <div className="bg-white border border-gray-200 rounded p-8">
+            <h1 className="font-bold text-2xl text-navy mb-1">Sign In</h1>
+            <p className="text-sm text-gray-500 mb-8">Welcome back. Continue your college roadmap.</p>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded mb-6">
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="you@email.com"
+                  className="w-full px-3.5 py-2.5 rounded border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-navy transition-colors bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="Your password"
+                  className="w-full px-3.5 py-2.5 rounded border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-navy transition-colors bg-white"
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-[#4a4a6a] uppercase tracking-wide mb-1.5 block">Password</label>
-              <input type="password" name="password" value={form.password} onChange={handleChange} placeholder="Your password" className="w-full px-4 py-3 rounded-xl border border-[#e0e0f0] text-sm text-[#1a1a2e] placeholder-[#c0c0d0] focus:outline-none focus:border-[#6C63FF] transition-colors bg-[#FAFAF7]" />
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full mt-6 bg-navy text-white font-semibold text-sm py-3 rounded hover:bg-navy-light transition-colors disabled:opacity-60"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-xs text-gray-400">or</span>
+              <div className="flex-1 h-px bg-gray-100" />
             </div>
+
+            <p className="text-center text-sm text-gray-500">
+              Don't have an account?{" "}
+              <span
+                onClick={() => navigate("/signup")}
+                className="text-cb-blue font-semibold cursor-pointer hover:underline"
+              >
+                Create a free account
+              </span>
+            </p>
           </div>
-          <button onClick={handleSubmit} disabled={loading} className="w-full mt-6 bg-[#6C63FF] text-white font-semibold text-base py-3.5 rounded-xl hover:bg-[#5a52e0] transition-colors disabled:opacity-60">
-            {loading ? "Logging in..." : "Log In →"}
-          </button>
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-[#f0f0f5]"></div>
-            <span className="text-xs text-[#c0c0d0]">or</span>
-            <div className="flex-1 h-px bg-[#f0f0f5]"></div>
-          </div>
-          <p className="text-center text-sm text-[#9a9ab0]">
-            Don't have an account?{" "}
-            <span onClick={() => navigate("/signup")} className="text-[#FF6B6B] font-semibold cursor-pointer hover:underline">Sign up free</span>
+
+          <p className="text-center text-xs text-gray-400 mt-5">
+            We never sell your data. Ever.
           </p>
         </div>
-        <p className="text-center text-xs text-[#c0c0d0] mt-6">We never sell your data. Ever.</p>
       </div>
     </div>
   )
