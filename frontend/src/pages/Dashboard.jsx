@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { sendChatMessage } from "../lib/api"
+import ReactMarkdown from "react-markdown"
 
 const checklistData = {
   "9th grade": [
@@ -68,11 +69,12 @@ export default function Dashboard() {
   const [activeNav, setActiveNav] = useState("checklist")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! I'm your AI college guide. Ask me anything about applications, essays, financial aid, or what to do next." }
-  ])
+  const [messages, setMessages] = useState([])
   const [chatInput, setChatInput] = useState("")
   const [chatLoading, setChatLoading] = useState(false)
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID())
+  const [sessions, setSessions] = useState([])
+  const [activeSession, setActiveSession] = useState(null)
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -81,7 +83,6 @@ export default function Dashboard() {
       if (!user) { navigate("/login"); return }
       setUser(user)
 
-      // Load onboarding answers
       const { data: onboarding } = await supabase
         .from("onboarding_answers")
         .select("answers")
@@ -89,7 +90,6 @@ export default function Dashboard() {
         .maybeSingle()
       if (onboarding) setAnswers(onboarding.answers)
 
-      // Load checklist progress
       const { data: progress } = await supabase
         .from("checklist_progress")
         .select("checked_items")
@@ -102,6 +102,36 @@ export default function Dashboard() {
         setChecked(checkedMap)
       }
 
+      const { data: sessionData } = await supabase
+        .from("chat_history")
+        .select("session_id, message, created_at")
+        .eq("user_id", user.id)
+        .eq("role", "user")
+        .order("created_at", { ascending: false })
+
+      if (sessionData) {
+        const seen = new Set()
+        const uniqueSessions = sessionData.filter(s => {
+          if (seen.has(s.session_id)) return false
+          seen.add(s.session_id)
+          return true
+        })
+        setSessions(uniqueSessions)
+
+        if (uniqueSessions.length > 0) {
+          const latestSession = uniqueSessions[0].session_id
+          setSessionId(latestSession)
+          setActiveSession(latestSession)
+          const { data: chatData } = await supabase
+            .from("chat_history")
+            .select("role, message")
+            .eq("user_id", user.id)
+            .eq("session_id", latestSession)
+            .order("created_at", { ascending: true })
+          if (chatData) setMessages(chatData.map(m => ({ role: m.role, text: m.message })))
+        }
+      }
+
       setLoading(false)
     }
     load()
@@ -112,6 +142,16 @@ export default function Dashboard() {
     navigate("/login")
   }
 
+  const grade = answers?.grade || "12th grade"
+  const checklist = checklistData[grade] || checklistData["12th grade"]
+  const completedCount = checklist ? checklist.filter(item => checked[item.id]).length : 0
+  const progressPct = checklist ? Math.round((completedCount / checklist.length) * 100) : 0
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "Student"
+  const status = progressPct === 0 ? { label: "Not started", color: "text-[#9a9ab0]" }
+    : progressPct < 40 ? { label: "Behind", color: "text-[#FF6B6B]" }
+    : progressPct < 75 ? { label: "On track", color: "text-[#f5c542]" }
+    : { label: "Ahead", color: "text-[#3dd68c]" }
+
   const sendMessage = async () => {
     const text = chatInput.trim()
     if (!text || chatLoading) return
@@ -119,8 +159,23 @@ export default function Dashboard() {
     setMessages(prev => [...prev, { role: "user", text }])
     setChatLoading(true)
     try {
-      const { answer } = await sendChatMessage(text, grade)
+      const { answer } = await sendChatMessage(text, grade, user.id, sessionId)
       setMessages(prev => [...prev, { role: "assistant", text: answer }])
+      const { data: sessionData } = await supabase
+        .from("chat_history")
+        .select("session_id, message, created_at")
+        .eq("user_id", user.id)
+        .eq("role", "user")
+        .order("created_at", { ascending: false })
+      if (sessionData) {
+        const seen = new Set()
+        const uniqueSessions = sessionData.filter(s => {
+          if (seen.has(s.session_id)) return false
+          seen.add(s.session_id)
+          return true
+        })
+        setSessions(uniqueSessions)
+      }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", text: "Sorry, something went wrong. Please try again." }])
     }
@@ -131,10 +186,28 @@ export default function Dashboard() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  const startNewSession = () => {
+    const newId = crypto.randomUUID()
+    setSessionId(newId)
+    setActiveSession(newId)
+    setMessages([])
+  }
+
+  const loadSession = async (sid) => {
+    setSessionId(sid)
+    setActiveSession(sid)
+    const { data } = await supabase
+      .from("chat_history")
+      .select("role, message")
+      .eq("user_id", user.id)
+      .eq("session_id", sid)
+      .order("created_at", { ascending: true })
+    if (data) setMessages(data.map(m => ({ role: m.role, text: m.message })))
+  }
+
   const toggleCheck = async (id) => {
     const updated = { ...checked, [id]: !checked[id] }
     setChecked(updated)
-
     const checkedIds = Object.keys(updated).filter(k => updated[k]).map(Number)
     setSaving(true)
     await supabase
@@ -154,21 +227,9 @@ export default function Dashboard() {
     )
   }
 
-  const grade = answers?.grade || "12th grade"
-  const checklist = checklistData[grade] || checklistData["12th grade"]
-  const completedCount = checklist.filter(item => checked[item.id]).length
-  const progressPct = Math.round((completedCount / checklist.length) * 100)
-  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "Student"
-
-  const status = progressPct === 0 ? { label: "Not started", color: "text-[#9a9ab0]" }
-    : progressPct < 40 ? { label: "Behind", color: "text-[#FF6B6B]" }
-    : progressPct < 75 ? { label: "On track", color: "text-[#f5c542]" }
-    : { label: "Ahead", color: "text-[#3dd68c]" }
-
   return (
     <div className="min-h-screen bg-[#0f0f13] flex">
 
-      {/* Sidebar */}
       <aside className="w-64 bg-[#17171e] border-r border-[#2a2a35] flex flex-col fixed h-full">
         <div className="px-6 py-6 border-b border-[#2a2a35]">
           <span className="font-display font-bold text-xl text-white tracking-tight">Collegable</span>
@@ -214,7 +275,6 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="ml-64 flex-1 p-8">
 
         {activeNav === "checklist" && (
@@ -291,47 +351,87 @@ export default function Dashboard() {
         )}
 
         {activeNav === "chat" && (
-          <div className="max-w-2xl flex flex-col h-[calc(100vh-4rem)]">
-            <div className="mb-6">
-              <h1 className="font-display font-bold text-2xl text-white mb-1">AI College Guide</h1>
-              <p className="text-[#7a7a90] text-sm">Ask anything about college prep, applications, or financial aid.</p>
-            </div>
-            <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-1 mb-4">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
-                    ${msg.role === "user"
-                      ? "bg-[#6C63FF] text-white rounded-br-sm"
-                      : "bg-[#17171e] border border-[#2a2a35] text-[#e8e8f0] rounded-bl-sm"}`}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-[#17171e] border border-[#2a2a35] px-4 py-3 rounded-2xl rounded-bl-sm text-[#7a7a90] text-sm">
-                    Thinking...
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-            <div className="flex gap-3 items-end">
-              <textarea
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-                placeholder="Ask your college question..."
-                rows={1}
-                className="flex-1 bg-[#17171e] border border-[#2a2a35] rounded-xl px-4 py-3 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6C63FF] resize-none transition-colors"
-              />
+          <div className="flex gap-6 h-[calc(100vh-4rem)]">
+
+            <div className="w-48 flex flex-col gap-2 flex-shrink-0">
               <button
-                onClick={sendMessage}
-                disabled={!chatInput.trim() || chatLoading}
-                className="bg-[#6C63FF] text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-[#5a52e0] transition-colors disabled:opacity-40"
+                onClick={startNewSession}
+                className="w-full bg-[#6C63FF] text-white text-xs font-semibold px-3 py-2.5 rounded-xl hover:bg-[#5a52e0] transition-colors"
               >
-                Send
+                + New Chat
               </button>
+              <div className="flex flex-col gap-1 overflow-y-auto">
+                {sessions.map((s, i) => (
+                  <button
+                    key={s.session_id}
+                    onClick={() => loadSession(s.session_id)}
+                    className={`text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
+                      activeSession === s.session_id
+                        ? "bg-[#2a2a35] text-white"
+                        : "text-[#7a7a90] hover:text-white hover:bg-[#2a2a35]"
+                    }`}
+                  >
+                    {s.message?.slice(0, 28) || `Chat ${i + 1}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="mb-4">
+                <h1 className="font-display font-bold text-2xl text-white mb-1">Cali — Your AI Guide</h1>
+                <p className="text-[#7a7a90] text-sm">Ask anything about college prep. Cali remembers your conversation.</p>
+              </div>
+              <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-1 mb-4">
+                {messages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-[#6C63FF20] flex items-center justify-center text-3xl">🎓</div>
+                    <p className="text-[#7a7a90] text-sm max-w-xs">Hey {firstName}! I'm Cali. Ask me anything about college prep — essays, FAFSA, SAT, deadlines, or what to do next.</p>
+                  </div>
+                )}
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+<div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed                      ${msg.role === "user"
+                        ? "bg-[#6C63FF] text-white rounded-br-sm"
+                        : "bg-[#17171e] border border-[#2a2a35] text-[#e8e8f0] rounded-bl-sm"}`}>
+                      {msg.role === "assistant" ? (
+  <ReactMarkdown>
+    {msg.text}
+  </ReactMarkdown>
+) : msg.text}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-[#17171e] border border-[#2a2a35] px-4 py-3 rounded-2xl rounded-bl-sm">
+                      <div className="flex gap-1 items-center">
+                        <div className="w-1.5 h-1.5 bg-[#6C63FF] rounded-full animate-bounce" style={{animationDelay:"0ms"}}></div>
+                        <div className="w-1.5 h-1.5 bg-[#6C63FF] rounded-full animate-bounce" style={{animationDelay:"150ms"}}></div>
+                        <div className="w-1.5 h-1.5 bg-[#6C63FF] rounded-full animate-bounce" style={{animationDelay:"300ms"}}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="flex gap-3 items-end">
+                <textarea
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                  placeholder="Ask Cali anything..."
+                  rows={1}
+                  className="flex-1 bg-[#17171e] border border-[#2a2a35] rounded-xl px-4 py-3 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6C63FF] resize-none transition-colors"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="bg-[#6C63FF] text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-[#5a52e0] transition-colors disabled:opacity-40"
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         )}
