@@ -1,8 +1,10 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field, field_validator
 from google import genai
 from services.rag import query_knowledge_base
 from db.supabase import supabase
+from middleware.auth import get_current_user
+from middleware.rate_limit import check_chat_rate
 import os
 import uuid
 
@@ -10,18 +12,36 @@ router = APIRouter()
 
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
+
 class ChatRequest(BaseModel):
-    question: str
-    grade: int
-    user_id: str
+    question: str = Field(..., min_length=1, max_length=500)
+    grade: int = Field(..., ge=9, le=12)
     session_id: str
 
+    @field_validator("question")
+    @classmethod
+    def strip_question(cls, v):
+        return v.strip()
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v):
+        try:
+            uuid.UUID(v)
+        except ValueError:
+            raise ValueError("session_id must be a valid UUID")
+        return v
+
+
 @router.post("/chat")
-def chat(body: ChatRequest):
-    # Load last 6 messages from this session
+def chat(body: ChatRequest, current_user=Depends(get_current_user)):
+    user_id = current_user.id
+
+    check_chat_rate(user_id)
+
     history_res = supabase.table("chat_history") \
         .select("role, message") \
-        .eq("user_id", body.user_id) \
+        .eq("user_id", user_id) \
         .eq("session_id", body.session_id) \
         .order("created_at", desc=False) \
         .limit(6) \
@@ -67,14 +87,14 @@ Cali:"""
     answer = response.text
 
     supabase.table("chat_history").insert({
-        "user_id": body.user_id,
+        "user_id": user_id,
         "session_id": body.session_id,
         "role": "user",
         "message": body.question
     }).execute()
 
     supabase.table("chat_history").insert({
-        "user_id": body.user_id,
+        "user_id": user_id,
         "session_id": body.session_id,
         "role": "assistant",
         "message": answer

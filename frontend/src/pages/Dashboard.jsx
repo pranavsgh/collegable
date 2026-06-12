@@ -159,7 +159,7 @@ export default function Dashboard() {
     setMessages(prev => [...prev, { role: "user", text }])
     setChatLoading(true)
     try {
-      const { answer } = await sendChatMessage(text, grade, user.id, sessionId)
+      const { answer } = await sendChatMessage(text, grade, sessionId)
       setMessages(prev => [...prev, { role: "assistant", text: answer }])
       const { data: sessionData } = await supabase
         .from("chat_history")
@@ -176,8 +176,11 @@ export default function Dashboard() {
         })
         setSessions(uniqueSessions)
       }
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", text: "Sorry, something went wrong. Please try again." }])
+    } catch (err) {
+      const msg = err.message === "rate_limited"
+        ? "Slow down — you're sending messages too fast. Wait a moment and try again."
+        : "Sorry, something went wrong. Please try again."
+      setMessages(prev => [...prev, { role: "assistant", text: msg }])
     }
     setChatLoading(false)
   }
