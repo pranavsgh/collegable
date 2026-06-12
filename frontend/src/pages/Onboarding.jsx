@@ -34,20 +34,17 @@ export default function Onboarding() {
     setAnswers(updated)
 
     if (current < questions.length - 1) {
-      setTimeout(() => setCurrent(current + 1), 300)
+      setTimeout(() => setCurrent(current + 1), 200)
     } else {
       setSaving(true)
       const { data: { user } } = await supabase.auth.getUser()
-      console.log("User:", user)
       if (user) {
-        const { data, error } = await supabase
+        await supabase
           .from("onboarding_answers")
           .upsert(
             { user_id: user.id, answers: updated, created_at: new Date().toISOString() },
             { onConflict: "user_id" }
           )
-        console.log("Saved:", data)
-        console.log("Error:", error)
       }
       setSaving(false)
       navigate("/dashboard")
@@ -59,27 +56,49 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] flex flex-col">
-      <div className="w-full px-8 pt-6 pb-4 flex items-center justify-between max-w-2xl mx-auto w-full">
-        <span onClick={() => navigate("/")} className="font-display font-bold text-xl text-[#1a1a2e] cursor-pointer hover:text-[#6C63FF] transition-colors">Collegable</span>
-        <span className="text-sm text-[#9a9ab0]">{current + 1} of {questions.length}</span>
+    <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
+
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
+          <span
+            onClick={() => navigate("/")}
+            className="font-bold text-navy text-lg tracking-tight cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            Collegable
+          </span>
+          <span className="text-xs text-gray-400 font-medium">
+            {current + 1} of {questions.length}
+          </span>
+        </div>
+      </header>
+
+      {/* Progress bar */}
+      <div className="w-full bg-gray-200 h-0.5">
+        <div
+          className="bg-navy h-0.5 transition-all duration-400"
+          style={{ width: `${progress}%` }}
+        />
       </div>
-      <div className="w-full bg-[#f0f0f5] h-1">
-        <div className="bg-[#6C63FF] h-1 transition-all duration-500" style={{ width: `${progress}%` }}></div>
-      </div>
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-xl">
-          <p className="text-xs font-semibold text-[#6C63FF] uppercase tracking-widest mb-4">{q.category}</p>
-          <h2 className="font-display font-bold text-2xl md:text-3xl text-[#1a1a2e] leading-snug mb-10">{q.question}</h2>
-          <div className="flex flex-col gap-3">
+
+      {/* Question */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-14">
+        <div className="w-full max-w-lg">
+          <p className="text-xs font-semibold text-cb-blue uppercase tracking-widest mb-4">
+            {q.category}
+          </p>
+          <h2 className="font-bold text-2xl text-navy leading-snug mb-8">
+            {q.question}
+          </h2>
+          <div className="flex flex-col gap-2.5">
             {q.options.map((option) => (
               <button
                 key={option}
                 onClick={() => handleSelect(option)}
-                className={`w-full text-left px-6 py-4 rounded-xl border text-sm font-medium transition-all duration-150
+                className={`w-full text-left px-5 py-3.5 rounded border text-sm font-medium transition-all duration-100
                   ${answers[q.id] === option
-                    ? "bg-[#6C63FF] text-white border-[#6C63FF] shadow-sm"
-                    : "bg-white text-[#1a1a2e] border-[#e0e0f0] hover:border-[#6C63FF] hover:bg-[#f5f4ff]"
+                    ? "bg-navy text-white border-navy"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-navy hover:text-navy"
                   }`}
               >
                 {option}
@@ -87,16 +106,35 @@ export default function Onboarding() {
             ))}
           </div>
           {current > 0 && (
-            <button onClick={handleBack} className="mt-8 text-sm text-[#9a9ab0] hover:text-[#6C63FF] transition-colors">← Back</button>
+            <button
+              onClick={handleBack}
+              className="mt-8 text-sm text-gray-400 hover:text-navy transition-colors"
+            >
+              ← Back
+            </button>
           )}
-          {saving && <p className="mt-6 text-sm text-[#9a9ab0] text-center">Saving your answers...</p>}
+          {saving && (
+            <p className="mt-6 text-sm text-gray-400 text-center">Saving your answers...</p>
+          )}
         </div>
       </div>
-      <div className="pb-8 flex items-center justify-center gap-1.5">
+
+      {/* Step dots */}
+      <div className="pb-8 flex items-center justify-center gap-1">
         {questions.map((_, i) => (
-          <div key={i} className={`rounded-full transition-all duration-300 ${i === current ? "w-4 h-1.5 bg-[#6C63FF]" : i < current ? "w-1.5 h-1.5 bg-[#6C63FF] opacity-40" : "w-1.5 h-1.5 bg-[#e0e0f0]"}`} />
+          <div
+            key={i}
+            className={`rounded-full transition-all duration-300 ${
+              i === current
+                ? "w-5 h-1.5 bg-navy"
+                : i < current
+                ? "w-1.5 h-1.5 bg-navy opacity-30"
+                : "w-1.5 h-1.5 bg-gray-300"
+            }`}
+          />
         ))}
       </div>
+
     </div>
   )
 }
