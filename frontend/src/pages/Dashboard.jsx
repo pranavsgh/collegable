@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
+import { sendChatMessage } from "../lib/api"
 
 const checklistData = {
   "9th grade": [
@@ -67,6 +68,12 @@ export default function Dashboard() {
   const [activeNav, setActiveNav] = useState("checklist")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [messages, setMessages] = useState([
+    { role: "assistant", text: "Hi! I'm your AI college guide. Ask me anything about applications, essays, financial aid, or what to do next." }
+  ])
+  const [chatInput, setChatInput] = useState("")
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef(null)
 
   useEffect(() => {
     const load = async () => {
@@ -104,6 +111,25 @@ export default function Dashboard() {
     await supabase.auth.signOut()
     navigate("/login")
   }
+
+  const sendMessage = async () => {
+    const text = chatInput.trim()
+    if (!text || chatLoading) return
+    setChatInput("")
+    setMessages(prev => [...prev, { role: "user", text }])
+    setChatLoading(true)
+    try {
+      const { answer } = await sendChatMessage(text, grade)
+      setMessages(prev => [...prev, { role: "assistant", text: answer }])
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", text: "Sorry, something went wrong. Please try again." }])
+    }
+    setChatLoading(false)
+  }
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   const toggleCheck = async (id) => {
     const updated = { ...checked, [id]: !checked[id] }
@@ -265,15 +291,47 @@ export default function Dashboard() {
         )}
 
         {activeNav === "chat" && (
-          <div className="max-w-2xl">
-            <div className="mb-8">
+          <div className="max-w-2xl flex flex-col h-[calc(100vh-4rem)]">
+            <div className="mb-6">
               <h1 className="font-display font-bold text-2xl text-white mb-1">AI College Guide</h1>
-              <p className="text-[#7a7a90] text-sm">Ask anything about college prep. Coming soon.</p>
+              <p className="text-[#7a7a90] text-sm">Ask anything about college prep, applications, or financial aid.</p>
             </div>
-            <div className="bg-[#17171e] border border-[#2a2a35] rounded-2xl p-8 flex flex-col items-center text-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#6C63FF20] flex items-center justify-center text-3xl">🤖</div>
-              <h2 className="font-display font-bold text-lg text-white">Chat is coming soon</h2>
-              <p className="text-sm text-[#7a7a90] max-w-sm">The AI guide will answer your college questions 24/7. Being built right now — check back soon.</p>
+            <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-1 mb-4">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+                    ${msg.role === "user"
+                      ? "bg-[#6C63FF] text-white rounded-br-sm"
+                      : "bg-[#17171e] border border-[#2a2a35] text-[#e8e8f0] rounded-bl-sm"}`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-[#17171e] border border-[#2a2a35] px-4 py-3 rounded-2xl rounded-bl-sm text-[#7a7a90] text-sm">
+                    Thinking...
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="flex gap-3 items-end">
+              <textarea
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                placeholder="Ask your college question..."
+                rows={1}
+                className="flex-1 bg-[#17171e] border border-[#2a2a35] rounded-xl px-4 py-3 text-sm text-[#e8e8f0] placeholder-[#4a4a6a] focus:outline-none focus:border-[#6C63FF] resize-none transition-colors"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!chatInput.trim() || chatLoading}
+                className="bg-[#6C63FF] text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-[#5a52e0] transition-colors disabled:opacity-40"
+              >
+                Send
+              </button>
             </div>
           </div>
         )}
