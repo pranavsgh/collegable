@@ -7,6 +7,8 @@ from routes.checklist import router as checklist_router
 from routes.resources import router as resources_router
 from routes.onboarding import router as onboarding_router
 from routes.roadmap import router as roadmap_router
+from routes.chat import router as chat_router
+
 
 
 
@@ -26,6 +28,7 @@ app.include_router(auth_router)
 app.include_router(roadmap_router)
 app.include_router(resources_router)
 app.include_router(onboarding_router)
+app.include_router(chat_router)
 
 @app.get("/health")
 def health():
