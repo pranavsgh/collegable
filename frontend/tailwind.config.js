@@ -7,16 +7,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          purple: "#7c6dfa",
-          green: "#3dd68c",
-          dark: "#0f0f13",
-          surface: "#17171e",
-        }
+        navy: {
+          DEFAULT: "#003057",
+          light: "#1F5C96",
+          dark: "#002040",
+          50: "#EAF3FB",
+        },
+        "cb-blue": {
+          DEFAULT: "#0077C8",
+          dark: "#005a96",
+        },
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],
-        display: ["Syne", "sans-serif"],
+        display: ["Inter", "sans-serif"],
       }
     },
   },
