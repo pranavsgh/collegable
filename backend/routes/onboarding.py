@@ -1,3 +1,4 @@
+# Onboarding route — saves the student's initial profile answers after they complete the quiz
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List
@@ -8,6 +9,7 @@ import uuid
 router = APIRouter()
 
 
+# Mirrors the fields collected by the onboarding quiz on the frontend
 class OnboardingRequest(BaseModel):
     grade: int
     gpa_range: str
@@ -19,6 +21,7 @@ class OnboardingRequest(BaseModel):
 @router.post("/onboarding")
 def onboarding(body: OnboardingRequest, current_user=Depends(get_current_user)):
     user_id = current_user.id
+    # Generate a roadmap ID so the frontend can deep-link to the personalized roadmap later
     roadmap_id = str(uuid.uuid4())
     supabase.table("onboarding_answers").insert({
         "user_id": user_id,

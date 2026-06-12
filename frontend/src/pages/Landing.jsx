@@ -1,5 +1,7 @@
+// Landing page — the public marketing page shown to visitors who aren't logged in
 import { useNavigate } from "react-router-dom"
 
+// Static testimonial data rendered in the social-proof section
 const testimonials = [
   {
     quote: "I'm the first in my family to apply to college. I had no idea where to start. Collegable gave me a checklist that actually made sense for where I am right now.",
@@ -24,11 +26,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white font-sans">
 
-      {/* Header */}
+      {/* Sticky header — stays visible as the user scrolls through the page */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-10">
             <span className="font-bold text-xl text-navy tracking-tight">Collegable</span>
+            {/* Nav links are decorative placeholders on this version */}
             <nav className="hidden md:flex items-center gap-7">
               <span className="text-sm text-gray-600 hover:text-navy cursor-pointer transition-colors">Features</span>
               <span className="text-sm text-gray-600 hover:text-navy cursor-pointer transition-colors">About</span>
@@ -51,7 +54,7 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Hero section — dark navy background to visually anchor the page */}
       <section className="bg-navy text-white">
         <div className="max-w-6xl mx-auto px-6 py-20 md:py-28">
           <p className="text-cb-blue text-sm font-semibold uppercase tracking-widest mb-5">
@@ -80,7 +83,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Stats bar — three quick trust-building numbers */}
       <section className="bg-gray-50 border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-6 py-10 flex items-center justify-center gap-16 flex-wrap">
           <div className="text-center">
@@ -100,13 +103,14 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features grid — three numbered cards explaining what the product does */}
       <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-cb-blue text-xs font-semibold uppercase tracking-widest mb-3">What you get</p>
             <h2 className="text-3xl font-bold text-navy">Three tools. One place. Zero confusion.</h2>
           </div>
+          {/* Grid with a gap-px trick that turns the background color into visible dividers */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-gray-200 border border-gray-200">
             <div className="bg-white p-10">
               <div className="w-9 h-9 bg-navy text-white flex items-center justify-center text-xs font-bold mb-6">
@@ -142,7 +146,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Testimonials — maps over the static array defined at the top of this file */}
       <section className="bg-gray-50 border-t border-b border-gray-200 py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
@@ -163,7 +167,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Bottom CTA */}
+      {/* Bottom CTA — repeated signup prompt for users who scrolled to the end */}
       <section className="py-20 px-6 text-center">
         <div className="max-w-xl mx-auto">
           <h2 className="text-3xl font-bold text-navy mb-4">Ready to build your roadmap?</h2>
@@ -179,7 +183,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer — minimal: logo and privacy statement */}
       <footer className="bg-navy border-t border-navy-dark">
         <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between flex-wrap gap-4">
           <span className="font-bold text-white text-sm">Collegable</span>
