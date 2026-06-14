@@ -2,7 +2,7 @@ fastapi
 uvicorn
 python-dotenv
 supabase
-pinecone
+pinecone==7.3.0
 google-genai
 httpx
 python-multipart
