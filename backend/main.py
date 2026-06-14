@@ -10,6 +10,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://collegable-five.vercel.app",
+        "https://collegable-beta.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
