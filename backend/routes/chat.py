@@ -54,7 +54,7 @@ def chat(body: ChatRequest, current_user=Depends(get_current_user)):
     onboarding_res = supabase.table("onboarding_answers") \
         .select("answers") \
         .eq("user_id", user_id) \
-        .maybeSingle() \
+        .maybe_single() \
         .execute()
     answers = (onboarding_res.data or {}).get("answers", {})
 
