@@ -47,6 +47,17 @@ def chat(body: ChatRequest, current_user=Depends(get_current_user)):
     # Enforce the sliding-window rate limit before doing any expensive work
     check_chat_rate(user_id)
 
+    # Pull the user's name from their Supabase auth metadata
+    user_name = (current_user.user_metadata or {}).get("full_name", "").split()[0] or "there"
+
+    # Fetch the user's onboarding answers to personalize Cali's responses
+    onboarding_res = supabase.table("onboarding_answers") \
+        .select("answers") \
+        .eq("user_id", user_id) \
+        .maybeSingle() \
+        .execute()
+    answers = (onboarding_res.data or {}).get("answers", {})
+
     # Fetch the last 6 turns of this session to give Cali short-term memory
     history_res = supabase.table("chat_history") \
         .select("role, message") \
@@ -68,6 +79,24 @@ def chat(body: ChatRequest, current_user=Depends(get_current_user)):
     chunks = query_knowledge_base(body.question)
     context = "\n\n".join(chunks)
 
+    # Build a profile summary from onboarding answers to inject into the prompt
+    profile = f"""Student profile:
+- Name: {user_name}
+- Grade: {answers.get("grade", f"{body.grade}th grade")}
+- GPA range: {answers.get("gpa", "unknown")}
+- Classes: {answers.get("classes", "unknown")}
+- First-generation student: {answers.get("first_gen", "unknown")}
+- Home support: {answers.get("support", "unknown")}
+- College goal: {answers.get("college_goal", "unknown")}
+- Preferred school size: {answers.get("school_size", "unknown")}
+- Intended major: {answers.get("major", "unknown")}
+- Dream school: {answers.get("dream_school", "unknown")}
+- Biggest stressor: {answers.get("stress", "unknown")}
+- Feelings about the process: {answers.get("feel_overall", "unknown")}
+- Research status: {answers.get("research", "unknown")}
+- Extracurriculars: {answers.get("extracurriculars", "unknown")}
+- Self-described as: {answers.get("student_word", "unknown")}"""
+
     # System prompt that defines Cali's voice and injects the retrieved context
     prompt = f"""You are Cali, a college prep guide built into Collegable — a free platform for high school students figuring out college on their own.
 
@@ -77,10 +106,13 @@ Your personality:
 - Keep answers short and scannable. Use bullet points only when listing actual steps or items
 - Never use headers with ### or bold titles mid-response — just talk
 - If a student seems stressed or lost, acknowledge it briefly then get to the point
-- You are talking to a {body.grade}th grade student — adjust your language and advice to their stage
+- Adjust your language and advice to their grade and situation — use their profile below
 - If something is urgent for their grade, say so clearly
 - Never lecture. Never repeat yourself. Never pad your answer
-- Remember what the student has already said in this conversation and reference it naturally
+- Use the student's name naturally but not in every message
+- Reference their profile details when relevant — don't ignore them
+
+{profile}
 
 Knowledge:
 {context}
