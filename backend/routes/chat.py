@@ -47,8 +47,11 @@ def chat(body: ChatRequest, current_user=Depends(get_current_user)):
     # Enforce the sliding-window rate limit before doing any expensive work
     check_chat_rate(user_id)
 
-    # Pull the user's name from their Supabase auth metadata
-    user_name = (current_user.user_metadata or {}).get("full_name", "").split()[0] or "there"
+    # Pull the user's first name from their Supabase auth metadata, falling back
+    # to "there" when no name is set (split() on an empty string yields [])
+    full_name = (current_user.user_metadata or {}).get("full_name") or ""
+    name_parts = full_name.split()
+    user_name = name_parts[0] if name_parts else "there"
 
     # Fetch the user's onboarding answers to personalize Cali's responses
     onboarding_res = supabase.table("onboarding_answers") \
